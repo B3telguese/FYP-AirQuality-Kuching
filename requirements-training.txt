@@ -1,0 +1,5 @@
+-r requirements.txt
+scikit-optimize>=0.9
+jupyterlab
+matplotlib
+seaborn

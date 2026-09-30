@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Air Quality PM2.5 Prediction Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #0d1117;
+  --surf:      #161b22;
+  --surf2:     #1c2430;
+  --border:    #30363d;
+  --border2:   #21262d;
+  --accent:    #2ea88a;
+  --accent2:   #58d1b0;
+  --accentbg:  rgba(46,168,138,.10);
+  --text:      #e6edf3;
+  --muted:     #7d8590;
+  --danger:    #e05252;
+  --r:         12px;
+}
+body.light-mode {
+  --bg:       #f0f4f8;
+  --surf:     #ffffff;
+  --surf2:    #edf1f6;
+  --border:   #d0d7de;
+  --border2:  #e4eaf0;
+  --accent:   #2ea88a;
+  --accent2:  #1a8a72;
+  --accentbg: rgba(46,168,138,.10);
+  --text:     #1c2432;
+  --muted:    #5d6b7a;
+  --danger:   #e05252;
+}
+body.light-mode::before {
+  background-image: radial-gradient(circle, rgba(46,168,138,.08) 1px, transparent 1px);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg); color: var(--text);
+  min-height: 100vh; line-height: 1.6;
+}
+body::before {
+  content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image: radial-gradient(circle, rgba(46,168,138,.15) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 40%, transparent 100%);
+}
+.page { position: relative; z-index: 1; max-width: 1160px; margin: 0 auto; padding: 0 24px 80px; }
+
+/* HEADER */
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 32px 0 26px; border-bottom: 1px solid var(--border);
+  margin-bottom: 36px; flex-wrap: wrap; gap: 16px;
+}
+.hd-left { display: flex; align-items: center; gap: 14px; }
+.logo {
+  width: 46px; height: 46px;
+  background: linear-gradient(135deg, #1a6b57 0%, var(--accent) 100%);
+  border-radius: 11px; display: flex; align-items: center; justify-content: center;
+  font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 800;
+  color: #fff; letter-spacing: -.5px;
+}
+.hd-text h1 { font-family: 'Syne', sans-serif; font-size: 19px; font-weight: 700; color: var(--text); }
+.hd-text p  { font-size: 12px; color: var(--muted); margin-top: 1px; }
+.theme-btn {
+  font-family: 'DM Mono', monospace; font-size: 11px;
+  padding: 5px 12px; border-radius: 20px;
+  border: 1px solid var(--border); color: var(--muted); background: var(--surf);
+  cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  transition: border-color .2s, background .2s, color .2s;
+}
+.theme-btn:hover { border-color: var(--accent); color: var(--accent2); background: var(--accentbg); }
+.theme-btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* CARD */
+.card {
+  background: var(--surf); border: 1px solid var(--border);
+  border-radius: var(--r); overflow: hidden;
+  animation: fadeUp .4s ease both;
+}
+@keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.card + .card, .card + .chart-row { margin-top: 18px; }
+.card-head {
+  padding: 14px 20px 13px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+}
+.ci {
+  width: 28px; height: 28px; border-radius: 6px;
+  background: var(--accentbg); display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.ci svg { width: 14px; height: 14px; stroke: var(--accent2); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.ct { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600; color: var(--text); }
+.cb { padding: 20px; }
+
+/* UPLOAD */
+.upload-grid { display: grid; grid-template-columns: 1fr 360px; gap: 18px; align-items: start; }
+@media (max-width: 860px) { .upload-grid { grid-template-columns: 1fr; } }
+
+.drop-zone {
+  border: 2px dashed var(--border); border-radius: 10px;
+  padding: 36px 24px; text-align: center; cursor: pointer;
+  transition: border-color .2s, background .2s;
+  background: var(--surf2);
+}
+.drop-zone:hover, .drop-zone.drag-over {
+  border-color: var(--accent); background: var(--accentbg);
+}
+.drop-zone svg { width: 36px; height: 36px; stroke: var(--muted); margin-bottom: 12px; }
+.drop-zone.drag-over svg { stroke: var(--accent2); }
+.drop-zone h3 { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.drop-zone p { font-size: 12.5px; color: var(--muted); line-height: 1.6; }
+.drop-zone .ext { font-family: 'DM Mono', monospace; color: var(--accent2); font-size: 11px; margin-top: 6px; }
+#file-input { display: none; }
+
+.file-chosen {
+  display: none; align-items: center; gap: 10px;
+  background: var(--surf2); border: 1px solid var(--border2);
+  border-radius: 8px; padding: 10px 14px; margin-top: 12px;
+}
+.file-chosen svg { width: 16px; height: 16px; stroke: var(--accent2); flex-shrink: 0; }
+.file-chosen span { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-chosen button {
+  background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 0 2px;
+}
+.file-chosen button:hover { color: var(--danger); }
+
+.btn {
+  width: 100%; margin-top: 16px; padding: 12px 18px;
+  background: var(--accent); color: #fff; border: none; border-radius: 8px;
+  font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 600;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: background .18s, transform .1s; letter-spacing: .2px;
+}
+.btn:hover:not(:disabled) { background: var(--accent2); }
+.btn:active:not(:disabled) { transform: scale(.98); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2.5; stroke-linecap: round; }
+
+/* SPINNER */
+.spinner {
+  display: none; align-items: center; justify-content: center; gap: 10px;
+  padding: 18px; color: var(--muted); font-size: 13px;
+}
+.spinner svg { width: 20px; height: 20px; stroke: var(--accent); animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ERROR BANNER */
+.msg-bar {
+  display: none; padding: 11px 16px; border-radius: 8px;
+  font-size: 13px; margin-top: 12px; align-items: flex-start; gap: 9px;
+}
+.msg-bar svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 1px; }
+.msg-bar.error  { background: rgba(224,82,82,.08); border: 1px solid rgba(224,82,82,.3); color: #f08080; }
+.msg-bar.error svg { stroke: var(--danger); fill: none; stroke-width: 2; stroke-linecap: round; }
+
+/* INFO CARD */
+.col-list { list-style: none; margin-top: 10px; }
+.col-list li {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 0; border-bottom: 1px solid var(--border2);
+  font-size: 12.5px;
+}
+.col-list li:last-child { border-bottom: none; }
+.col-badge {
+  font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500;
+  padding: 2px 8px; border-radius: 5px;
+  background: var(--accentbg); color: var(--accent2); border: 1px solid rgba(46,168,138,.2);
+  min-width: 52px; text-align: center;
+}
+.col-list .desc { color: var(--muted); font-size: 12px; }
+
+/* AQI CATEGORY ROWS */
+.aqi-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 0; border-bottom: 1px solid var(--border2);
+  font-size: 12px;
+}
+.aqi-row:last-child { border-bottom: none; }
+.aqi-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.aqi-label { font-family: 'DM Mono', monospace; font-size: 11.5px; color: var(--text); min-width: 90px; font-weight: 500; }
+.aqi-range { font-size: 11px; color: var(--muted); }
+
+/* RESULTS */
+#results { display: none; margin-top: 28px; }
+
+.file-banner {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--accentbg); border: 1px solid rgba(46,168,138,.2);
+  border-radius: 8px; padding: 11px 16px; margin-bottom: 20px;
+}
+.file-banner svg { width: 15px; height: 15px; stroke: var(--accent2); flex-shrink: 0; }
+.file-banner .fn { font-family: 'DM Mono', monospace; font-size: 13px; color: var(--accent2); font-weight: 500; }
+.file-banner .fi { font-size: 12px; color: var(--muted); margin-left: auto; }
+
+/* STAT CARDS */
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+@media (max-width: 700px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+.stat-card {
+  background: var(--surf); border: 1px solid var(--border); border-radius: 10px;
+  padding: 16px 18px; animation: fadeUp .35s ease both;
+}
+.stat-card .sl { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+.stat-card .sv { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 700; color: var(--text); line-height: 1.1; }
+.stat-card .su { font-family: 'DM Mono', monospace; font-size: 10.5px; color: var(--muted); margin-top: 4px; }
+.stat-card.accent .sv { color: var(--accent2); }
+.stat-card.status-card { border-width: 2px; }
+
+/* CHART ROW */
+.chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 18px; }
+@media (max-width: 760px) { .chart-row { grid-template-columns: 1fr; } }
+.chart-holder    { min-height: 320px; }
+.chart-holder-sm { min-height: 300px; }
+.chart-holder-lg { min-height: 360px; }
+
+/* TABLE */
+.tscroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead tr { border-bottom: 1px solid var(--border); }
+thead th { font-family: 'DM Mono', monospace; font-size: 10.5px; font-weight: 500; color: var(--accent2); text-transform: uppercase; letter-spacing: .5px; padding: 10px 14px; text-align: right; white-space: nowrap; background: var(--accentbg); }
+thead th:first-child, thead th:nth-child(2) { text-align: left; }
+tbody tr { border-bottom: 1px solid var(--border2); transition: background .14s; }
+tbody tr:nth-child(even) { background: var(--surf2); }
+tbody tr:hover { background: rgba(46,168,138,.07); }
+tbody tr:last-child { border-bottom: none; }
+tbody td { padding: 9px 14px; text-align: right; font-family: 'DM Mono', monospace; font-size: 12px; }
+tbody td:first-child { text-align: left; color: var(--muted); }
+tbody td:nth-child(2) { text-align: left; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cat-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; padding: 3px 10px; border-radius: 20px; font-family: 'DM Mono', monospace; font-weight: 500; white-space: nowrap; }
+.dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+
+/* PREVIEW TABLES */
+.prev-tbl { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.prev-tbl thead th { background: var(--accentbg); color: var(--accent2); font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: .5px; padding: 8px 14px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--border); }
+.prev-tbl thead th:first-child { text-align: left; }
+.prev-tbl tbody td { font-family: 'DM Mono', monospace; font-size: 11.5px; padding: 7px 14px; text-align: right; border-bottom: 1px solid var(--border2); color: var(--text); }
+.prev-tbl tbody td:first-child { text-align: left; }
+.prev-tbl tbody tr:nth-child(even) { background: var(--surf2); }
+.prev-tbl tbody tr:hover { background: rgba(46,168,138,.07); }
+.prev-tbl tbody tr:last-child td { border-bottom: none; }
+
+/* MODEL COMPARISON TABLE */
+.cmp-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.cmp-table thead th {
+  font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: .5px;
+  padding: 10px 14px; text-align: right; white-space: nowrap;
+  border-bottom: 1px solid var(--border); background: var(--surf2);
+}
+.cmp-table thead th.left  { text-align: left; color: var(--muted); }
+.cmp-table thead th.te-col { color: var(--accent2); background: var(--accentbg); }
+.cmp-table thead th.te-first { border-left: 1px solid var(--border); }
+.cmp-table tbody tr { border-bottom: 1px solid var(--border2); transition: background .14s; }
+.cmp-table tbody tr:nth-child(even):not(.stack-row) { background: var(--surf2); }
+.cmp-table tbody tr:hover { background: rgba(46,168,138,.07); }
+.cmp-table tbody tr:last-child { border-bottom: none; }
+.cmp-table tbody td { padding: 9px 14px; text-align: right; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text); }
+.cmp-table tbody td.left { text-align: left; color: var(--muted); }
+.cmp-table tbody tr.stack-row { background: var(--accentbg); }
+.cmp-table tbody tr.stack-row:hover { background: rgba(46,168,138,.16); }
+.cmp-table tbody tr.stack-row td { color: var(--accent2); }
+.cmp-table tbody tr.stack-row td.left { font-weight: 600; color: var(--accent2); }
+
+/* PIPELINE STEPS */
+.step-hd { padding: 14px 20px 13px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+.step-num { width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 700; }
+.step-title { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600; color: var(--text); }
+.step-sub { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); font-weight: 400; margin-left: 8px; }
+.step-note { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; padding: 10px 20px 14px; line-height: 1.7; }
+.split-pills { display: flex; gap: 10px; flex-wrap: wrap; padding: 16px 20px 4px; }
+.split-pill { background: var(--surf2); border: 1px solid var(--border2); border-radius: 8px; padding: 10px 16px; min-width: 110px; }
+.split-pill .sl { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.split-pill .sv { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700; color: var(--accent2); margin: 2px 0 1px; }
+.split-pill .su { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); }
+.feat-pills { display: flex; gap: 8px; flex-wrap: wrap; padding: 16px 20px; }
+.feat-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 8px; font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500; border: 1px solid rgba(46,168,138,.3); background: var(--accentbg); color: var(--accent2); }
+.feat-pill svg { width: 12px; height: 12px; stroke: var(--accent2); fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.bo-table { width: 100%; border-collapse: collapse; }
+.bo-table th { font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500; color: var(--accent2); text-transform: uppercase; letter-spacing: .5px; padding: 8px 14px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; background: var(--accentbg); }
+.bo-table td { font-family: 'DM Mono', monospace; font-size: 11.5px; padding: 8px 14px; border-bottom: 1px solid var(--border2); color: var(--text); vertical-align: top; }
+.bo-table tbody tr:nth-child(even) { background: var(--surf2); }
+.bo-table tr:last-child td { border-bottom: none; }
+.bo-table .mn { color: var(--accent2); font-weight: 500; white-space: nowrap; }
+.pchip { display: inline-block; background: var(--surf2); border: 1px solid var(--border2); border-radius: 4px; padding: 1px 6px; margin: 1px; font-size: 10.5px; white-space: nowrap; }
+.arch-table { width: 100%; border-collapse: collapse; }
+.arch-table th { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--accent2); text-transform: uppercase; letter-spacing: .5px; padding: 8px 14px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; background: var(--accentbg); }
+.arch-table td { font-family: 'DM Mono', monospace; font-size: 12px; padding: 8px 14px; border-bottom: 1px solid var(--border2); color: var(--text); }
+.arch-table tbody tr:nth-child(even):not(.meta-row) { background: var(--surf2); }
+.arch-table tr:last-child td { border-bottom: none; }
+.arch-table .meta-row td { background: rgba(46,168,138,.18); color: var(--accent2); font-weight: 500; border-top: 1px solid rgba(46,168,138,.3); }
+.sec-lbl { display: flex; align-items: center; gap: 10px; margin: 28px 0 14px; }
+
+/* TECHNICAL DETAILS TOGGLE */
+.tech-toggle-btn {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 18px; margin-top: 32px;
+  background: var(--surf2); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--muted); font-family: 'DM Mono', monospace; font-size: 11.5px;
+  cursor: pointer; transition: border-color .2s, background .2s, color .2s;
+}
+.tech-toggle-btn:hover { border-color: var(--accent); color: var(--accent2); background: var(--accentbg); }
+.tech-toggle-btn .arrow { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; transition: transform .3s; flex-shrink: 0; }
+.tech-toggle-btn .arrow-up { transform: rotate(180deg); }
+
+/* LIGHT MODE */
+body.light-mode .step-hd { background: #f5f8fb; }
+body.light-mode .card-head { background: #f5f8fb; }
+body.light-mode thead th,
+body.light-mode .prev-tbl thead th,
+body.light-mode .bo-table th,
+body.light-mode .arch-table th { background: rgba(46,168,138,.18); color: #0d5c48; }
+body.light-mode .cmp-table thead th { background: #edf1f6; color: var(--muted); }
+body.light-mode .cmp-table thead th.te-col { background: rgba(46,168,138,.18); color: #0d5c48; }
+body.light-mode tbody tr:nth-child(even),
+body.light-mode .prev-tbl tbody tr:nth-child(even),
+body.light-mode .bo-table tbody tr:nth-child(even),
+body.light-mode .arch-table tbody tr:nth-child(even):not(.meta-row),
+body.light-mode .cmp-table tbody tr:nth-child(even):not(.stack-row) { background: #f0f4f8; }
+body.light-mode tbody tr:hover,
+body.light-mode .prev-tbl tbody tr:hover,
+body.light-mode .bo-table tbody tr:hover,
+body.light-mode .arch-table tbody tr:not(.meta-row):hover,
+body.light-mode .cmp-table tbody tr:not(.stack-row):hover { background: rgba(46,168,138,.09); }
+body.light-mode .pchip { background: #e8edf3; border-color: #d0d7de; color: #1c2432; }
+body.light-mode .split-pill { background: #edf1f6; border-color: #d0d7de; }
+body.light-mode .tech-toggle-btn { background: #edf1f6; }
+
+/* STATUS BADGE (model comparison) */
+.status-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500;
+  padding: 2px 8px; border-radius: 20px; white-space: nowrap;
+}
+.status-over { background: rgba(227,160,42,.12); color: #e3a02a; border: 1px solid rgba(227,160,42,.3); }
+.status-good { background: rgba(46,168,138,.12); color: var(--accent2); border: 1px solid rgba(46,168,138,.3); }
+
+/* FOOTER */
+footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+footer p { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); }
+footer span { color: var(--accent2); }
+
+/* EXPORT BUTTON */
+.btn-export {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 13px;
+  background: rgba(46,168,138,.12); border: 1px solid rgba(46,168,138,.35); border-radius: 7px;
+  color: var(--accent2); font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: background .18s, border-color .18s; letter-spacing: .2px;
+  white-space: nowrap;
+}
+.btn-export:hover { background: rgba(46,168,138,.22); border-color: var(--accent2); }
+.btn-export:disabled { opacity: .5; cursor: not-allowed; }
+.btn-export svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- HEADER -->
+<header>
+  <div class="hd-left">
+    <div class="logo">AQI</div>
+    <div class="hd-text">
+      <h1>Air Quality Dashboard</h1>
+      <p>Kuching, Sarawak &middot; DOE Malaysia</p>
+    </div>
+  </div>
+  <button id="theme-toggle" class="theme-btn" onclick="toggleTheme()">
+    <svg class="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+    <svg class="icon-moon" viewBox="0 0 24 24" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    <span id="theme-label">Bright Mode</span>
+  </button>
+</header>
+
+<!-- UPLOAD SECTION -->
+<div class="upload-grid">
+
+  <!-- Upload Card -->
+  <div class="card">
+    <div class="card-head">
+      <div class="ci">
+        <svg viewBox="0 0 24 24"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+      </div>
+      <span class="ct">Upload Air Quality Data</span>
+    </div>
+    <div class="cb">
+      <form id="upload-form" enctype="multipart/form-data">
+        <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          <h3>Drop your dataset here</h3>
+          <p>CSV or Excel file exported from the monitoring station<br><strong>Date, NO2, O3, CO, PM10, PM2.5</strong></p>
+          <div class="ext">Supported: .csv &nbsp;&middot;&nbsp; .xlsx &nbsp;&middot;&nbsp; .xls</div>
+        </div>
+        <input type="file" id="file-input" name="file" accept=".csv,.xlsx,.xls">
+
+        <div class="file-chosen" id="file-chosen">
+          <svg viewBox="0 0 24 24"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+          <span id="file-name">—</span>
+          <button type="button" id="clear-file" title="Remove file">&#x2715;</button>
+        </div>
+
+        <div class="msg-bar error" id="error-bar">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span id="error-text"></span>
+        </div>
+
+        <div class="spinner" id="spinner">
+          <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke-width="2" stroke-dasharray="28 14"/></svg>
+          Analysing data — please wait…
+        </div>
+
+        <button type="submit" class="btn" id="predict-btn" {% if not models_ok %}disabled{% endif %}>
+          <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          {% if models_ok %}Analyse Air Quality{% else %}Model Not Available{% endif %}
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Info Card: Required Columns + AQI Reference -->
+  <div>
+    <div class="card">
+      <div class="card-head">
+        <div class="ci"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+        <span class="ct">Guide</span>
+      </div>
+      <div class="cb" style="padding:14px 20px 16px">
+
+        <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Required Data Columns</div>
+        <ul class="col-list" style="margin-bottom:14px">
+          <li><span class="col-badge">NO2</span><span class="desc">Nitrogen dioxide (ppm)</span></li>
+          <li><span class="col-badge">O3</span><span class="desc">Ozone (ppm)</span></li>
+          <li><span class="col-badge">CO</span><span class="desc">Carbon monoxide (mg/m³)</span></li>
+          <li><span class="col-badge">PM10</span><span class="desc">Particulate matter 10 μm (μg/m³)</span></li>
+          <li style="border-bottom:none"><span class="col-badge" style="background:rgba(46,168,138,.18);border-color:rgba(46,168,138,.4)">PM2.5</span><span class="desc">Fine particulate (μg/m³)</span></li>
+        </ul>
+
+        <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;padding-top:12px;border-top:1px solid var(--border2)">AQI Category Reference</div>
+        <div class="aqi-row"><span class="aqi-dot" style="background:#2ea88a"></span><span class="aqi-label">Good</span><span class="aqi-range">AQI 0–50 &nbsp;·&nbsp; PM2.5 ≤ 12 μg/m³</span></div>
+        <div class="aqi-row"><span class="aqi-dot" style="background:#e3a02a"></span><span class="aqi-label">Moderate</span><span class="aqi-range">AQI 51–100 &nbsp;·&nbsp; 12–35 μg/m³</span></div>
+        <div class="aqi-row"><span class="aqi-dot" style="background:#d4763b"></span><span class="aqi-label">Sensitive</span><span class="aqi-range">AQI 101–150 &nbsp;·&nbsp; 35–55 μg/m³</span></div>
+        <div class="aqi-row"><span class="aqi-dot" style="background:#e05252"></span><span class="aqi-label">Unhealthy</span><span class="aqi-range">AQI 151–200 &nbsp;·&nbsp; 55–150 μg/m³</span></div>
+        <div class="aqi-row"><span class="aqi-dot" style="background:#b75de0"></span><span class="aqi-label">Very Unhealthy</span><span class="aqi-range">AQI 201–300</span></div>
+        <div class="aqi-row" style="border-bottom:none"><span class="aqi-dot" style="background:#9e2a2a"></span><span class="aqi-label">Hazardous</span><span class="aqi-range">AQI 301–500</span></div>
+
+      </div>
+    </div>
+  </div>
+</div><!-- /upload-grid -->
+
+<!-- RESULTS SECTION -->
+<div id="results">
+
+  <!-- File banner -->
+  <div class="file-banner" id="file-banner">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+    <span class="fn" id="banner-filename">—</span>
+    <span class="fi" id="banner-rows">—</span>
+    <button id="export-btn" class="btn-export">
+      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Download Full Report
+    </button>
+  </div>
+
+  <!-- ── SECTION: Air Quality Summary ── -->
+  <div class="sec-lbl">
+    <div class="ci"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div>
+    <span class="step-title">Air Quality Summary</span>
+    <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">Overview of predicted air quality conditions</span>
+  </div>
+
+  <!-- Policy KPI Cards -->
+  <div class="stats-grid">
+    <div class="stat-card status-card" id="status-card">
+      <div class="sl">Overall Status</div>
+      <div class="sv" id="s-status" style="font-size:16px;line-height:1.2;margin-top:2px">—</div>
+      <div class="su" id="s-status-sub">Dominant predicted category</div>
+    </div>
+    <div class="stat-card">
+      <div class="sl">Readings Analysed</div>
+      <div class="sv" id="s-total">—</div>
+      <div class="su">data points processed</div>
+    </div>
+    <div class="stat-card accent">
+      <div class="sl">Clean Air</div>
+      <div class="sv" id="s-clean">—</div>
+      <div class="su">Good &amp; Moderate (AQI ≤ 100)</div>
+    </div>
+    <div class="stat-card">
+      <div class="sl">Pollution Alert</div>
+      <div class="sv" id="s-alert">—</div>
+      <div class="su">Unhealthy or worse (AQI &gt; 150)</div>
+    </div>
+  </div>
+
+  <!-- PM2.5 Trend -->
+  <div class="card">
+    <div class="card-head">
+      <div class="ci"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+      <span class="ct">PM2.5 Concentration Over Time</span>
+    </div>
+    <div class="cb" style="padding:10px 14px 14px">
+      <div id="chart-pm25" class="chart-holder"></div>
+    </div>
+  </div>
+
+  <!-- AQI Distribution Pie (full width) -->
+  <div class="card" style="margin-top:18px">
+    <div class="card-head">
+      <div class="ci"><svg viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg></div>
+      <span class="ct">Air Quality Category Distribution</span>
+    </div>
+    <div class="cb" style="padding:10px 14px 14px">
+      <div id="chart-pie" class="chart-holder-lg"></div>
+    </div>
+  </div>
+
+  <!-- ── SECTION: Prediction Table ── -->
+  <div class="sec-lbl" style="margin-top:32px">
+    <div class="ci"><svg viewBox="0 0 24 24"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/></svg></div>
+    <span class="step-title">Predicted Air Quality Records</span>
+    <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">First 25 readings from uploaded dataset</span>
+  </div>
+
+  <div class="card">
+    <div class="cb" style="padding:0 0 4px">
+      <div class="tscroll">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Date / Time</th>
+              <th style="text-align:center">Predicted AQI</th>
+              <th style="text-align:left">Air Quality Status</th>
+            </tr>
+          </thead>
+          <tbody id="pred-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TECHNICAL DETAILS (collapsible) ── -->
+  <button class="tech-toggle-btn" id="tech-toggle-btn" onclick="toggleTech()">
+    <span>&#9881;&#xFE0F; Technical Details &mdash; Model Pipeline &amp; Evaluation</span>
+    <svg class="arrow" id="tech-arrow" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+  </button>
+
+  <div id="tech-details" style="display:none">
+
+    <!-- Pipeline Steps 1–5 -->
+    <div id="pipeline-steps" style="margin-top:16px">
+
+      <div class="card">
+        <div class="step-hd">
+          <div class="step-num">1</div>
+          <span class="step-title">Original Data <span class="step-sub">First 10 rows from uploaded file</span></span>
+        </div>
+        <div class="cb" style="padding:0 0 4px">
+          <div class="tscroll">
+            <table class="prev-tbl">
+              <thead><tr id="step1-head"></tr></thead>
+              <tbody id="step1-body"></tbody>
+            </table>
+          </div>
+          <p class="step-note">Raw values as received — zero readings and missing PM2.5 visible before any cleaning.</p>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div class="step-hd">
+          <div class="step-num">2</div>
+          <span class="step-title">Data Preprocessing <span class="step-sub">Clean · Impute · Min-Max Normalize</span></span>
+        </div>
+        <div class="cb" style="padding:0 0 4px">
+          <div class="tscroll">
+            <table class="prev-tbl">
+              <thead><tr id="step2-head"></tr></thead>
+              <tbody id="step2-body"></tbody>
+            </table>
+          </div>
+          <p class="step-note">NO2, O3, CO, PM10 scaled to [0, 1] &middot; PM2.5 kept in original scale (µg/m³) &middot; Zero values replaced with column mean &middot; Rows with missing PM2.5 dropped.</p>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div class="step-hd">
+          <div class="step-num">3</div>
+          <span class="step-title">Feature Selection <span class="step-sub">Bayesian Optimization · Gaussian Process · EI acquisition · 20 calls</span></span>
+        </div>
+        <div class="cb" style="padding-bottom:0">
+          <div class="feat-pills" id="step3-feats"></div>
+          <p class="step-note">BO evaluated 20 feature subsets using a Random Forest CV-MSE objective. All 4 features retained as the optimal subset.</p>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div class="step-hd">
+          <div class="step-num">4</div>
+          <span class="step-title">Training &amp; Hyperparameter Tuning <span class="step-sub">80 / 20 Chronological Split · Bayesian Optimization · 50 calls</span></span>
+        </div>
+        <div class="cb" style="padding-bottom:0">
+          <div class="split-pills">
+            <div class="split-pill"><div class="sl">Total</div><div class="sv">3,026</div><div class="su">rows</div></div>
+            <div class="split-pill"><div class="sl">Training</div><div class="sv">2,420</div><div class="su">rows (80%)</div></div>
+            <div class="split-pill"><div class="sl">Testing</div><div class="sv">606</div><div class="su">rows (20%)</div></div>
+            <div class="split-pill"><div class="sl">BO Calls</div><div class="sv">50</div><div class="su">per model</div></div>
+          </div>
+          <div class="tscroll" style="margin-top:14px">
+            <table class="bo-table">
+              <thead>
+                <tr>
+                  <th>Model</th>
+                  <th>Optimized Hyperparameters</th>
+                  <th style="text-align:right">Test MAE</th>
+                  <th style="text-align:right">Test R²</th>
+                </tr>
+              </thead>
+              <tbody id="step4-body"></tbody>
+            </table>
+          </div>
+          <p class="step-note">Temporal holdout validation: last 20% of training set &middot; Acquisition: Expected Improvement (EI)</p>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div class="step-hd">
+          <div class="step-num">5</div>
+          <span class="step-title">Stacking Ensemble <span class="step-sub">Level-0 Base Learners → Level-1 Meta-Learner</span></span>
+        </div>
+        <div class="cb" style="padding:0 0 4px">
+          <div class="tscroll">
+            <table class="arch-table">
+              <thead>
+                <tr><th>Level</th><th>Model</th><th>Role</th><th>Input</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Level-0</td><td>Random Forest (Optimized)</td><td>Base Learner</td><td>4 scaled features</td></tr>
+                <tr><td>Level-0</td><td>XGBoost (Optimized)</td><td>Base Learner</td><td>4 scaled features</td></tr>
+                <tr><td>Level-0</td><td>CatBoost (Optimized)</td><td>Base Learner</td><td>4 scaled features</td></tr>
+                <tr><td>Level-0</td><td>SVR (Optimized)</td><td>Base Learner</td><td>4 scaled features</td></tr>
+                <tr class="meta-row"><td>Level-1</td><td>XGBoost (Meta-Learner)</td><td>Final Predictor</td><td>4 base predictions + 4 original features</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="step-note">5-fold CV generates out-of-fold predictions for meta-learner training &middot; passthrough=True passes original features to meta-learner.</p>
+        </div>
+      </div>
+
+    </div><!-- /pipeline-steps -->
+
+    <!-- Scatter + Heatmap -->
+    <div class="chart-row" style="margin-top:18px">
+      <div class="card">
+        <div class="card-head">
+          <div class="ci"><svg viewBox="0 0 24 24"><circle cx="7.5" cy="16.5" r="2"/><circle cx="16.5" cy="7.5" r="2"/><circle cx="11" cy="11" r="2"/><line x1="3" y1="21" x2="21" y2="3"/></svg></div>
+          <span class="ct">Actual vs Predicted PM2.5</span>
+        </div>
+        <div class="cb" style="padding:10px 14px 14px">
+          <div id="chart-scatter" class="chart-holder-sm"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <div class="ci"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></div>
+          <span class="ct">Pollutant Correlation Heatmap</span>
+        </div>
+        <div class="cb" style="padding:10px 14px 14px">
+          <div id="chart-heatmap" class="chart-holder-sm"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Model Comparison -->
+    <div class="sec-lbl" style="margin-top:28px">
+      <div class="ci"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
+      <span class="step-title">Model Evaluation</span>
+      <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">Performance metrics from notebook training run</span>
+    </div>
+
+    <!-- Performance stat row (technical metrics) -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">
+      <div class="stat-card accent"><div class="sl">R²</div><div class="sv" id="s-r2">—</div><div class="su">goodness of fit</div></div>
+      <div class="stat-card"><div class="sl">RMSE</div><div class="sv" id="s-rmse">—</div><div class="su">μg/m³</div></div>
+      <div class="stat-card"><div class="sl">MAE</div><div class="sv" id="s-mae">—</div><div class="su">μg/m³</div></div>
+      <div class="stat-card accent"><div class="sl">AQI Match</div><div class="sv" id="s-match">—</div><div class="su">category accuracy</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div class="ci"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+        <span class="ct">Model Performance Comparison (Test Set)</span>
+      </div>
+      <div class="cb" style="padding:0 0 4px">
+        <p id="cmp-placeholder" style="font-size:12px;color:var(--muted);font-family:'DM Mono',monospace;padding:16px 20px">
+          Loading model data…
+        </p>
+        <div id="cmp-all" style="display:none">
+          <div class="tscroll">
+            <table class="cmp-table">
+              <thead>
+                <tr>
+                  <th class="left">Model</th>
+                  <th class="te-col">RMSE &darr;</th>
+                  <th class="te-col">MAE &darr;</th>
+                  <th class="te-col">R² &uarr;</th>
+                </tr>
+              </thead>
+              <tbody id="cmp-all-body"></tbody>
+            </table>
+          </div>
+          <p class="step-note">&#9733; Stacking Ensemble is the final deployed model &nbsp;&middot;&nbsp; Lower RMSE / MAE and higher R² = better</p>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /tech-details -->
+
+</div><!-- /results -->
+
+<footer>
+  <p>Air Quality PM2.5 Dashboard &middot; Kuching, Sarawak &middot; FYP CDCS2303A &middot; Muhamad Hafizzuddin</p>
+  <p>Model: <span>Stacking Ensemble (RF + XGBoost + CatBoost + SVR)</span> &middot; Source: DOE Malaysia</p>
+</footer>
+</div><!-- /page -->
+
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<script>
+let lastResult = null;
+
+const CAT_COLORS = {
+  'Good':                           '#2ea88a',
+  'Moderate':                       '#e3a02a',
+  'Unhealthy for Sensitive Groups': '#d4763b',
+  'Unhealthy':                      '#e05252',
+  'Very Unhealthy':                 '#b75de0',
+  'Hazardous':                      '#9e2a2a',
+};
+
+function getPL() {
+  const light = document.body.classList.contains('light-mode');
+  const textColor   = light ? '#1c2432' : '#e6edf3';
+  const gridColor   = light ? '#e4eaf0' : '#21262d';
+  const borderColor = light ? '#d0d7de' : '#30363d';
+  const surfColor   = light ? '#ffffff' : '#1c2430';
+  const bgColor     = light ? '#f0f4f8' : '#0d1117';
+  const mutedColor  = light ? '#5d6b7a' : '#7d8590';
+  return {
+    paper_bgcolor: light ? '#ffffff' : '#161b22',
+    plot_bgcolor:  bgColor,
+    font:       { color: textColor, family: 'DM Sans, sans-serif', size: 12 },
+    xaxis:      { gridcolor: gridColor, zerolinecolor: borderColor, color: mutedColor, linecolor: borderColor },
+    yaxis:      { gridcolor: gridColor, zerolinecolor: borderColor, color: mutedColor, linecolor: borderColor },
+    legend:     { bgcolor: surfColor, bordercolor: borderColor, borderwidth: 1 },
+    margin:     { t: 30, r: 20, b: 50, l: 60 },
+    hoverlabel: { bgcolor: surfColor, bordercolor: borderColor, font: { color: textColor, size: 12 } },
+    textColor, bgColor,
+  };
+}
+const PC = { responsive: true, displayModeBar: false };
+
+const PM25_SHAPES = [
+  { type: 'rect', xref: 'paper', x0: 0, x1: 1, y0: 0,    y1: 12,   fillcolor: '#2ea88a', opacity: .05, line: { width: 0 } },
+  { type: 'rect', xref: 'paper', x0: 0, x1: 1, y0: 12,   y1: 35.4, fillcolor: '#e3a02a', opacity: .05, line: { width: 0 } },
+  { type: 'rect', xref: 'paper', x0: 0, x1: 1, y0: 35.4, y1: 55.4, fillcolor: '#d4763b', opacity: .05, line: { width: 0 } },
+  { type: 'rect', xref: 'paper', x0: 0, x1: 1, y0: 55.4, y1: 300,  fillcolor: '#e05252', opacity: .04, line: { width: 0 } },
+];
+
+const dropZone   = document.getElementById('drop-zone');
+const fileInput  = document.getElementById('file-input');
+const fileChosen = document.getElementById('file-chosen');
+const fileName   = document.getElementById('file-name');
+const clearBtn   = document.getElementById('clear-file');
+const errorBar   = document.getElementById('error-bar');
+const errorText  = document.getElementById('error-text');
+const spinner    = document.getElementById('spinner');
+const predictBtn = document.getElementById('predict-btn');
+
+function showFile(name) {
+  fileName.textContent     = name;
+  fileChosen.style.display = 'flex';
+  errorBar.style.display   = 'none';
+}
+function clearFile() {
+  fileInput.value          = '';
+  fileChosen.style.display = 'none';
+  errorBar.style.display   = 'none';
+}
+function showError(msg) {
+  errorText.textContent  = msg;
+  errorBar.style.display = 'flex';
+  spinner.style.display  = 'none';
+  predictBtn.disabled    = false;
+}
+
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) showFile(fileInput.files[0].name);
+});
+clearBtn.addEventListener('click', clearFile);
+
+dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f) {
+    const dt = new DataTransfer();
+    dt.items.add(f);
+    fileInput.files = dt.files;
+    showFile(f.name);
+  }
+});
+
+document.getElementById('upload-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  if (!fileInput.files[0]) { showError('Please select a file first.'); return; }
+
+  spinner.style.display  = 'flex';
+  errorBar.style.display = 'none';
+  predictBtn.disabled    = true;
+  document.getElementById('results').style.display = 'none';
+
+  const fd = new FormData();
+  fd.append('file', fileInput.files[0]);
+
+  try {
+    const res  = await fetch('/predict', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok || data.error) { showError(data.error || 'Prediction failed.'); return; }
+    renderResults(data);
+  } catch {
+    showError('Network error — is the server running?');
+  } finally {
+    spinner.style.display = 'none';
+    predictBtn.disabled   = false;
+  }
+});
+
+function renderResults(d) {
+  lastResult = d;
+
+  // File banner
+  document.getElementById('banner-filename').textContent = d.filename;
+  document.getElementById('banner-rows').textContent     = `${d.metrics.n_rows} readings`;
+
+  // Technical metrics (hidden in collapsible)
+  document.getElementById('s-r2').textContent    = d.metrics.r2;
+  document.getElementById('s-rmse').textContent  = d.metrics.rmse;
+  document.getElementById('s-mae').textContent   = d.metrics.mae;
+  document.getElementById('s-match').textContent = d.metrics.cat_match + '%';
+
+  // ── Policy KPI Cards ──
+  // 1. Overall Status (dominant category)
+  const dominant      = d.metrics.dominant;
+  const dominantColor = CAT_COLORS[dominant] || 'var(--accent2)';
+  const statusEl      = document.getElementById('s-status');
+  statusEl.textContent  = dominant;
+  statusEl.style.color  = dominantColor;
+  document.getElementById('status-card').style.borderColor = dominantColor + '66';
+
+  // 2. Readings
+  document.getElementById('s-total').textContent = d.metrics.n_rows.toLocaleString();
+
+  // 3. Clean Air % and 4. Alert %
+  const pieMap = {};
+  d.charts.pie_labels.forEach((lbl, i) => { pieMap[lbl] = d.charts.pie_values[i]; });
+  const totalPie  = d.charts.pie_values.reduce((a, b) => a + b, 0);
+  const cleanCats = ['Good', 'Moderate'];
+  const alertCats = ['Unhealthy', 'Very Unhealthy', 'Hazardous'];
+  const cleanCnt  = cleanCats.reduce((s, c) => s + (pieMap[c] || 0), 0);
+  const alertCnt  = alertCats.reduce((s, c) => s + (pieMap[c] || 0), 0);
+  const cleanPct  = totalPie ? (cleanCnt / totalPie * 100).toFixed(1) + '%' : '—';
+  const alertPct  = totalPie ? (alertCnt / totalPie * 100).toFixed(1) + '%' : '—';
+
+  document.getElementById('s-clean').textContent = cleanPct;
+
+  const alertEl = document.getElementById('s-alert');
+  alertEl.textContent  = alertPct;
+  alertEl.style.color  = (alertCnt > 0) ? 'var(--danger)' : 'var(--accent2)';
+
+  // Show results
+  const results = document.getElementById('results');
+  results.style.display = 'block';
+  results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  drawPM25(d.charts);
+  drawPie(d.charts);
+  renderTable(d.table);
+  if (d.pipeline) renderPipeline(d.pipeline);
+}
+
+const MAX_TS = 200;
+
+function drawPM25(c) {
+  const pl    = getPL();
+  const n     = Math.min(MAX_TS, c.xlabels.length);
+  const x     = c.xlabels.slice(0, n);
+  const yAct  = c.pm25_act.slice(0, n);
+  const yPred = c.pm25_pred.slice(0, n);
+  const yMax  = Math.ceil(Math.max(...yAct, ...yPred) * 1.25);
+
+  Plotly.newPlot('chart-pm25', [
+    { x, y: yAct,  name: 'Actual PM2.5',    mode: 'lines', line: { color: pl.textColor, width: 2 } },
+    { x, y: yPred, name: 'Predicted PM2.5', mode: 'lines', line: { color: '#2ea88a', width: 2, dash: 'dot' } },
+  ], {
+    ...pl,
+    yaxis: { ...pl.yaxis, title: 'PM2.5 (μg/m³)', range: [0, yMax] },
+    xaxis: { ...pl.xaxis, title: `Time (first ${n} of ${c.xlabels.length} readings)` },
+    shapes: PM25_SHAPES,
+  }, PC);
+}
+
+function drawScatter(c) {
+  const el = document.getElementById('chart-scatter');
+  if (!el) return;
+  const pl    = getPL();
+  const MAX_S = 1000;
+  const step  = Math.max(1, Math.floor(c.pm25_act.length / MAX_S));
+  const act   = c.pm25_act.filter((_, i) => i % step === 0);
+  const pred  = c.pm25_pred.filter((_, i) => i % step === 0);
+  const lo    = Math.min(...act, ...pred);
+  const hi    = Math.max(...act, ...pred);
+
+  Plotly.newPlot('chart-scatter', [
+    {
+      x: act, y: pred, mode: 'markers', name: 'Samples',
+      marker: { color: '#2ea88a', size: 5, opacity: 0.5 },
+      hovertemplate: 'Actual: %{x:.2f}<br>Predicted: %{y:.2f}<extra></extra>',
+    },
+    {
+      x: [lo, hi], y: [lo, hi], mode: 'lines', name: 'Perfect fit',
+      line: { color: pl.textColor, width: 1.5, dash: 'dash' },
+    },
+  ], {
+    ...pl,
+    xaxis: { ...pl.xaxis, title: 'Actual PM2.5 (μg/m³)' },
+    yaxis: { ...pl.yaxis, title: 'Predicted PM2.5 (μg/m³)' },
+  }, PC);
+}
+
+function drawPie(c) {
+  const pl = getPL();
+  Plotly.newPlot('chart-pie', [{
+    labels: c.pie_labels,
+    values: c.pie_values,
+    type:   'pie',
+    hole:   0.4,
+    marker: { colors: c.pie_colors, line: { color: pl.bgColor, width: 2 } },
+    textfont: { color: pl.textColor, size: 12 },
+    textinfo: 'label+percent',
+    hovertemplate: '%{label}: %{value} readings (%{percent})<extra></extra>',
+  }], {
+    ...pl,
+    margin:     { t: 30, r: 20, b: 30, l: 20 },
+    showlegend: true,
+    legend:     { ...pl.legend, orientation: 'h', x: 0.5, xanchor: 'center', y: -0.05 },
+  }, PC);
+}
+
+function drawHeatmap(c) {
+  const el = document.getElementById('chart-heatmap');
+  if (!el) return;
+  const pl = getPL();
+  Plotly.newPlot('chart-heatmap', [{
+    z:    c.corr_vals,
+    x:    c.corr_cols,
+    y:    c.corr_cols,
+    type: 'heatmap',
+    colorscale: [[0,'#7b2d8b'],[0.25,'#c0557a'],[0.5,'#2ea88a'],[0.75,'#58d1b0'],[1,'#e6edf3']],
+    zmin: -1, zmax: 1,
+    text: c.corr_vals.map(row => row.map(v => v != null ? (+v).toFixed(2) : '')),
+    texttemplate: '%{text}',
+    showscale: true,
+    hovertemplate: '%{x} × %{y}: %{z:.3f}<extra></extra>',
+    colorbar: { thickness: 12, len: 0.8, tickfont: { size: 10, color: pl.textColor } },
+  }], {
+    ...pl,
+    margin: { t: 20, r: 80, b: 60, l: 70 },
+  }, PC);
+}
+
+function renderTable(rows) {
+  document.getElementById('pred-table-body').innerHTML = rows.map(r =>
+    `<tr>
+      <td>${r.idx}</td>
+      <td>${r.date}</td>
+      <td style="text-align:center;font-weight:600;color:${r.color}">${r.pred_aqi}</td>
+      <td style="text-align:left">
+        <span class="cat-badge" style="background:${r.color}18;color:${r.color};border:1px solid ${r.color}44">
+          <span class="dot" style="background:${r.color}"></span>${r.category}
+        </span>
+      </td>
+    </tr>`
+  ).join('');
+}
+
+function renderPreviewTable(headId, bodyId, columns, rows) {
+  document.getElementById(headId).innerHTML = columns.map(c => `<th>${c}</th>`).join('');
+  document.getElementById(bodyId).innerHTML = rows.map(r =>
+    `<tr>${r.map(v =>
+      `<td>${v === null ? '<span style="color:var(--muted)">—</span>' : v}</td>`
+    ).join('')}</tr>`
+  ).join('');
+}
+
+const STEP4_METRICS = {
+  'Random Forest': { mae: '2.5264', r2: '0.7565' },
+  'XGBoost':       { mae: '2.5617', r2: '0.7326' },
+  'CatBoost':      { mae: '2.5372', r2: '0.7565' },
+  'SVR':           { mae: '3.1374', r2: '0.6808' },
+};
+
+function renderPipeline(p) {
+  renderPreviewTable('step1-head', 'step1-body', p.raw_preview.columns, p.raw_preview.rows);
+  renderPreviewTable('step2-head', 'step2-body', p.prep_preview.columns, p.prep_preview.rows);
+
+  document.getElementById('step3-feats').innerHTML = p.features.map(f =>
+    `<span class="feat-pill"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>${f}</span>`
+  ).join('');
+
+  document.getElementById('step4-body').innerHTML = Object.entries(p.bo_params).map(([model, params]) => {
+    const chips = Object.entries(params).map(([k, v]) => `<span class="pchip">${k}: ${v}</span>`).join('');
+    const m = STEP4_METRICS[model] || { mae: '—', r2: '—' };
+    return `<tr>
+      <td class="mn">${model}</td>
+      <td>${chips}</td>
+      <td style="text-align:right">${m.mae}</td>
+      <td style="text-align:right">${m.r2}</td>
+    </tr>`;
+  }).join('');
+}
+
+function toggleTech() {
+  const panel = document.getElementById('tech-details');
+  const arrow = document.getElementById('tech-arrow');
+  const isHidden = panel.style.display === 'none';
+  panel.style.display = isHidden ? 'block' : 'none';
+  arrow.classList.toggle('arrow-up', isHidden);
+  if (isHidden && lastResult) {
+    // Render technical charts now that their containers are visible
+    drawScatter(lastResult.charts);
+    drawHeatmap(lastResult.charts);
+  }
+}
+
+function toggleTheme() {
+  const isLight = document.body.classList.toggle('light-mode');
+  document.querySelector('.icon-sun').style.display  = isLight ? 'none' : '';
+  document.querySelector('.icon-moon').style.display = isLight ? '' : 'none';
+  document.getElementById('theme-label').textContent = isLight ? 'Dark Mode' : 'Bright Mode';
+  localStorage.setItem('theme', isLight ? 'light' : 'dark');
+  if (lastResult && document.getElementById('results').style.display !== 'none') {
+    drawPM25(lastResult.charts);
+    drawPie(lastResult.charts);
+    if (document.getElementById('tech-details').style.display !== 'none') {
+      drawScatter(lastResult.charts);
+      drawHeatmap(lastResult.charts);
+    }
+  }
+}
+
+(function () {
+  if (localStorage.getItem('theme') === 'light') {
+    document.body.classList.add('light-mode');
+    document.querySelector('.icon-sun').style.display  = 'none';
+    document.querySelector('.icon-moon').style.display = '';
+    document.getElementById('theme-label').textContent = 'Dark Mode';
+  }
+})();
+
+/* ── Model Comparison ── */
+function _fmt(v, dp) { return v != null ? (+v).toFixed(dp) : '—'; }
+
+function renderModelComparison(d) {
+  const allBody = document.getElementById('cmp-all-body');
+  if (allBody && d.all_models && d.all_models.length) {
+    let lastGroup = null;
+    allBody.innerHTML = d.all_models.map(m => {
+      const name    = m.Model || '';
+      const isStack = name.toLowerCase().includes('stacking');
+      const group   = isStack ? 'Stacking'
+                    : name.toLowerCase().includes('default') ? 'Baseline' : 'Optimized';
+      let sep = '';
+      if (group !== lastGroup) {
+        lastGroup = group;
+        sep = `<tr style="background:var(--surf2)">
+          <td class="left" colspan="4" style="padding:6px 14px;font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">
+            ${group} Models
+          </td></tr>`;
+      }
+      const rowClass = isStack ? 'class="stack-row"' : '';
+      return sep + `<tr ${rowClass}>
+        <td class="left">${isStack ? name + ' ★' : name}</td>
+        <td>${_fmt(m['Test RMSE'], 4)}</td>
+        <td>${_fmt(m['Test MAE'],  4)}</td>
+        <td>${_fmt(m['Test R2'],   4)}</td>
+      </tr>`;
+    }).join('');
+    document.getElementById('cmp-placeholder').style.display = 'none';
+    document.getElementById('cmp-all').style.display = '';
+  }
+}
+
+async function loadModelComparison() {
+  try {
+    const res  = await fetch('/model_comparison');
+    if (!res.ok) {
+      document.getElementById('cmp-placeholder').textContent =
+        'No model data yet — run the notebook (all phases) first.';
+      return;
+    }
+    const data = await res.json();
+    if (data.error) return;
+    renderModelComparison(data);
+  } catch { }
+}
+
+document.addEventListener('DOMContentLoaded', loadModelComparison);
+
+document.getElementById('export-btn').addEventListener('click', async () => {
+  if (!lastResult) return;
+  const btn      = document.getElementById('export-btn');
+  const origHtml = btn.innerHTML;
+  btn.disabled   = true;
+  btn.innerHTML  = `<svg viewBox="0 0 24 24" fill="none" style="animation:spin 1s linear infinite"><circle cx="12" cy="12" r="9" stroke-width="2" stroke-dasharray="28 14"/></svg> Generating…`;
+  try {
+    const res = await fetch('/export', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        filename: lastResult.filename,
+        metrics:  lastResult.metrics,
+        charts: {
+          xlabels:   lastResult.charts.xlabels,
+          pm25_act:  lastResult.charts.pm25_act,
+          pm25_pred: lastResult.charts.pm25_pred,
+          aqi_act:   lastResult.charts.aqi_act,
+          aqi_pred:  lastResult.charts.aqi_pred,
+        },
+        ds_stats: lastResult.ds_stats,
+      }),
+    });
+    if (!res.ok) { showError('Export failed. Please try again.'); return; }
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = lastResult.filename.replace(/\.[^.]+$/, '') + '_report.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch {
+    showError('Export failed — is the server running?');
+  } finally {
+    btn.disabled  = false;
+    btn.innerHTML = origHtml;
+  }
+});
+</script>
+</body>
+</html>

@@ -1,131 +1,95 @@
-# Improving Air Quality Prediction Using Bayesian Optimization for Feature Selection and Hyperparameter Tuning
+<div align="center">
+<h1>Kuching Air Quality Prediction</h1>
+<p><strong>Bayesian optimization · PM2.5 prediction · AQI visualization</strong></p>
+<p>Final Year Project — Muhamad Hafizzuddin Bin Haslin</p>
+<p>Universiti Teknologi MARA · Supervisor: Madam Azlina Narawi</p>
+</div>
 
-Final Year Project (FYP) — PM2.5 air quality prediction for **Kuching, Sarawak**, using **Bayesian Optimization** and a **stacking ensemble** of machine learning models. The model predicts daily **PM2.5** concentrations from four pollutant inputs and converts the predictions into the **Air Quality Index (AQI)** using the US EPA piecewise-linear breakpoint formula.
+> **Upload status:** The dashboard, primary notebook, Kuching datasets, and Kuching model files are available. Additional DOE/Bintulu/Miri datasets, reports, figures, archived notebooks, and result workbooks are prepared but awaiting the remaining upload. References below describe the complete project package.
 
-**Author:** Muhamad Hafizzuddin Bin Haslin
-**Programme:** BSc (Hons) Computer Science, Universiti Teknologi MARA (UiTM) Cawangan Sarawak
-**Supervisor:** Madam Azlina Narawi
+## About the research
 
----
+**Improving Air Quality Prediction Using Bayesian Optimization for Feature Selection and Hyperparameter Tuning** investigates Random Forest, XGBoost, CatBoost, and Support Vector Regression using Kuching air-quality observations. A stacking ensemble combines the optimized base learners using an XGBoost meta-learner.
 
-## Objectives
+The repository includes a Flask dashboard, research notebooks, saved model artifacts, datasets, exported experiment results, and academic reports. These materials are shared as a research portfolio and reproducibility resource, not an operational air-quality advisory service.
 
-1. Compare the predictive performance of four machine learning algorithms — Random Forest, XGBoost, CatBoost, and Support Vector Regression (SVR) — in forecasting air quality.
-2. Improve prediction performance and generalization by using Bayesian Optimization for both feature selection and hyperparameter tuning.
-3. Develop and validate a stacking ensemble that integrates the optimized models, targeting a coefficient of determination (R²) above 0.80.
+## Explore the project
 
----
+| Resource | Contents |
+| --- | --- |
+| [Dashboard backend](main.py) | File ingestion, preprocessing, predictions, AQI mapping, and Excel export |
+| [Dashboard interface](templates/index.html) | Browser interface for exploring predictions and results |
+| [Main research notebook](FYP_AirQuality_Kuching-master.ipynb) | Feature selection, tuning, stacking, evaluation, and export |
+| [Kuching data](Dataset%20Kuching/) | Original supplied datasets and preprocessing variants |
+| DOE data (pending upload) | Supplied DOE workbooks |
+| Academic reports (pending upload) | Full supplied chapter and report PDFs |
+| Recorded results (pending upload) | Workbook consumed by the dashboard |
+| [Saved model](saved_model/) | Kuching artifacts and separate Miri experiment artifacts |
 
-## Dataset
+## Dashboard features
 
-- **Source:** Department of Environment (DOE) Malaysia, via the Air Pollutant Index Management System (APIMS).
-- **Region:** Kuching monitoring station only.
-- **Period:** 2016–2024.
-- **Inputs (features):** NO2, O3, CO, PM10.
-- **Target:** PM2.5.
-- Multivariate, daily records, no lag features.
+- Upload CSV or Excel pollutant records.
+- Predict PM2.5 using saved model artifacts without retraining.
+- Compare observed and predicted concentrations.
+- Map predicted PM2.5 to the AQI categories implemented in the code.
+- Inspect model comparisons and export an Excel report.
 
-After preprocessing: 3,026 raw records reduced to 2,557 cleaned records, split chronologically 80/20 (2,045 training / 512 testing).
+**Input requirement:** the current upload workflow expects `NO2`, `O3`, `CO`, `PM10`, and observed `PM2.5`; `Date` is optional. It uses observed PM2.5 for evaluation and drops rows missing that target. This is an evaluation/nowcasting workflow, not a future forecast endpoint accepting only a date.
 
----
+## Run the dashboard on Windows
 
-## Pipeline
+Clone the repository and open CMD in its root:
 
-```
-Preprocess → Bayesian Feature Selection → Baseline Training →
-Bayesian Hyperparameter Tuning (4 models) → Stacking Ensemble →
-Testing → Performance Evaluation → PM2.5-to-AQI Forecast
-```
-
-**Key methodology details:**
-
-- Feature selection and hyperparameter tuning use `gp_minimize` (Gaussian Process + Expected Improvement, 30 evaluations).
-- `TimeSeriesSplit(5)` is used for tuning and feature selection to preserve temporal order.
-- The stacking ensemble uses an XGBoost meta-learner (n_estimators=200, learning_rate=0.05, max_depth=4) over the four optimized base learners.
-- PM2.5 predictions are mapped to AQI categories using the US EPA breakpoints (Good, Moderate, Unhealthy for Sensitive Groups, Unhealthy, Very Unhealthy, Hazardous).
-
----
-
-## Repository Structure
-
-```
-FYP_AirQuality_Kuching/
-├── FYP_AirQuality_Kuching.ipynb    # Main notebook (full pipeline)
-├── Dataset Kuching/
-│   └── KuchingDataset.xlsx         # Cleaned Kuching dataset
-├── saved_model/                    # Generated model artifacts
-│   ├── stacking_model.pkl
-│   ├── scaler.pkl
-│   └── selected_features.pkl
-├── Kuching_model_results.xlsx      # Exported results (generated)
-├── requirements.txt
-└── README.md
+```cmd
+git clone https://github.com/B3telguese/FYP-AirQuality-Kuching.git
+cd FYP-AirQuality-Kuching
+python -m venv .venv
+.venv\Scripts\activate
+python -m pip install -r requirements.txt
+python -m flask --app main run
 ```
 
----
+Open **http://127.0.0.1:5000/**. This command serves the app locally without enabling the debug mode configured in `python main.py`.
 
-## How to Run
+The app expects `saved_model/stacking_model.pkl`, `saved_model/scaler.pkl`, and `saved_model/all_features.pkl`. Keep these files together. It reads comparison data from `Kuching_model_results.xlsx`.
 
-### Option A — Google Colab (recommended)
+The supplied dependency versions are broad minimums, not a locked training environment. Serialized estimators can fail to load with different scikit-learn, XGBoost, or CatBoost versions. Model loading is not proof of reproduction, and a page loading successfully is not proof that the model loaded: the current loader suppresses exceptions. Use only model files from a source you trust.
 
-1. Open `FYP_AirQuality_Kuching.ipynb` in Google Colab.
-2. Upload the dataset (or mount Google Drive) so the notebook can find `Dataset Kuching/KuchingDataset.xlsx`.
-3. Run all cells from top to bottom. The first cell installs the required packages.
+## Research workflow
 
-### Option B — Local machine
+1. Load Kuching pollutant observations and preprocess them.
+2. Define predictor variables and PM2.5 as the regression target.
+3. Split the observations and scale the predictors.
+4. Select features using Bayesian optimization.
+5. Train baseline models and tune the four model families.
+6. Combine the tuned models with an XGBoost stacking meta-learner.
+7. Evaluate regression performance, investigate split sensitivity, and map PM2.5 to AQI categories.
 
-```bash
-# 1. Clone the repository
-git clone https://github.com/<your-username>/FYP_AirQuality_Kuching.git
-cd FYP_AirQuality_Kuching
+The main notebook uses `TimeSeriesSplit` for optimization and `cv=5` KFold within stacking. These are different validation procedures; the stacking folds should not be described as time-series cross-validation. Its `passthrough=True` setting passes input features alongside base-model predictions to the meta-learner.
 
-# 2. (Optional) create a virtual environment
-python -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
+To open the training notebook, separately install the training dependencies:
 
-# 3. Install dependencies
-pip install -r requirements.txt
-
-# 4. Launch the notebook
-jupyter notebook FYP_AirQuality_Kuching.ipynb
+```cmd
+python -m pip install -r requirements-training.txt
+jupyter lab FYP_AirQuality_Kuching-master.ipynb
 ```
 
----
+Training and sensitivity analysis can be computationally expensive. They are not required to browse the repository or start inference with compatible saved artifacts. Run notebooks from the repository root so relative paths resolve.
 
-## Results
+## Results and experiment provenance
 
-Test-set performance (512 held-out samples), baseline vs. Bayesian-optimized vs. stacking ensemble:
+The existing repository documented an optimized Random Forest R² of **0.9407** and stacking R² of **0.9276**. These are previously reported reference-run values, not newly reproduced measurements in this update. Consult the results workbook (pending upload), notebook outputs, and reports for their associated experiment context. This documentation update does not claim that all archived runs share identical metrics or that stacking necessarily outperforms every individual model.
 
-| Model                        | Test R²  | Test RMSE | Test MAE |
-|------------------------------|----------|-----------|----------|
-| Random Forest (Default)      | 0.9229   | 2.5323    | 1.7226   |
-| XGBoost (Default)            | 0.8809   | 3.1470    | 2.0194   |
-| CatBoost (Default)           | 0.9008   | 2.8716    | 1.8436   |
-| SVR (Default)                | 0.7790   | 4.2868    | 2.4382   |
-| Random Forest (Optimized)    | 0.9407   | 2.2208    | 1.4670   |
-| XGBoost (Optimized)          | 0.9010   | 2.8687    | 1.8841   |
-| CatBoost (Optimized)         | 0.9333   | 2.3555    | 1.5409   |
-| SVR (Optimized)              | 0.9051   | 2.8100    | 1.7266   |
-| **Stacking Ensemble**        | **0.9276** | **2.4534** | **1.5983** |
+`FYP_AirQuality_Kuching-master.ipynb` is the primary implementation documented here. The `mock` notebook and `etc/` notebooks are retained as supplied research variants, not interchangeable reproductions of the primary run. Bintulu and Miri datasets and models are supporting experiments; `main.py` loads the root `saved_model` artifacts for the Kuching dashboard.
 
-**Notes on interpretation:**
+## AQI interpretation
 
-- Bayesian Optimization improved every base model over its default. SVR gained the most (Test MAE −29.19%).
-- The stacking ensemble reduces Test MAE by **20.32% versus the average baseline** and **7.22% versus the best baseline** (default Random Forest), and clears the R² ≥ 0.80 target with R² 0.9276.
-- On this single test split, the optimized Random Forest records a marginally higher R² (0.9407) than the ensemble. This is expected: a stacking ensemble is designed for **robust, generalizable** performance across conditions rather than to guarantee the highest score of any single model on one split. Its strength is stability and consistent improvement over baselines.
-- **Split sensitivity** (five chronological ratios, 50/50 to 90/10): ensemble mean R² **0.9164 ± 0.0273**, confirming the ensemble generalizes reliably regardless of the split point.
-- **AQI classification accuracy:** 90.04% on the 512 test samples.
+The code maps PM2.5 to AQI using its embedded breakpoint table: the first concentration interval is **0.0–12.0**, followed by **12.1–35.4**. This documents the implementation; it does not assert equivalence to current US EPA guidance or Malaysia's official API calculation. No breakpoint changes were made in this update. See [implementation notes](docs/IMPLEMENTATION_NOTES.md).
 
-*(Figures are from the reference run; exact values may vary slightly with library versions and random seeds.)*
+## Data, reports, and attribution
 
----
+The datasets and full reports are included at the author's request. DOE is credited as the data source in the original project documentation. Public availability of this repository does not establish a separate open-data license or transfer third-party rights. No blanket software or dataset license has been assigned in this update; retain source attribution and consult the relevant rights holder before redistribution.
 
-## Requirements
+## Repository maintenance
 
-See [`requirements.txt`](requirements.txt). Core libraries: scikit-learn, xgboost, catboost, scikit-optimize, pandas, numpy, openpyxl, joblib.
-
----
-
-## License
-
-This project is submitted as part of an academic Final Year Project. Please cite or credit appropriately if reused.
+This update restores the uploaded project's working folder paths, adds the dashboard and supporting material, and removes generated training logs and temporary local files from the current tree. Python source, notebooks, datasets, reports, and model bytes are preserved from the supplied archive. No model training, serialized-model execution, or experiment rerun was performed during preparation.
